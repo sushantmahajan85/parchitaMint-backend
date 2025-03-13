@@ -99,7 +99,7 @@ export async function mintNFT({
             })),
           ],
         },
-        compressed: true,
+        compressed: false,
         reuploadLinkedFiles: true,
       }),
     };
