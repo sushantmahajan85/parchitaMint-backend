@@ -52,7 +52,7 @@ function findNFTById(nftId: string): NFTData | undefined {
 export async function mintNFT({
   walletAddress,
   nftId,
-  collectionId = "a0a30de7-b755-4025-8c25-3a2bfa29e03d", // Default to "default-solana" collection
+  collectionId = "707c8692-5f24-4722-86cc-c10f1e55ba4c", // Default to "default-solana" collection
 }: MintRequest): Promise<MintResponse> {
   try {
     // Validate inputs
