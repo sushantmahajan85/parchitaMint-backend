@@ -68,7 +68,7 @@ export async function mintNFT(
     if (!response.ok) {
       return {
         success: false,
-        error: data.message || "Failed to mint NFT",
+        error: data?.message || "Failed to mint NFT",
         data,
       };
     }

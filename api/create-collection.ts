@@ -69,7 +69,7 @@ export async function createCollection(
     if (!response.ok) {
       return {
         success: false,
-        error: data.message || "Failed to create collection",
+        error: data?.message || "Failed to create collection",
         data,
       };
     }
