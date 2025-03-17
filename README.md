@@ -1,20 +1,19 @@
 # Parchita NFT Minting Server
 
-A Bun server for minting NFTs on the Solana blockchain using Crossmint's API.
+A Bun server for minting NFTs on the Solana blockchain using EZMINT's API.
 
 ## Project Overview
 
-This project provides a simple API for minting NFTs from a predefined collection. It uses:
+This project provides a simple API server that interfaces with EZMINT's API for NFT operations. It uses:
 
 - [Bun](https://bun.sh) as the JavaScript/TypeScript runtime
-- [Crossmint API](https://docs.crossmint.com/) for minting NFTs on Solana
+- [EZMINT API](https://ezmint.xyz) as the underlying NFT service
 - TypeScript for type safety
 
 ## Features
 
 - RESTful API for minting NFTs
-- Predefined collection of NFTs with metadata
-- Solana blockchain integration via Crossmint
+- Solana blockchain integration via EZMINT
 
 ## Installation
 
@@ -36,25 +35,24 @@ The server will start on port 3000 by default.
 
 ## API Endpoints
 
-### Mint an NFT
+### Create a Collection
 
-**Endpoint:** `POST /api/mint`
+**Endpoint:** `POST /api/create-collection`
 
 **Request Body:**
 
 ```json
 {
-  "walletAddress": "your_solana_wallet_address",
-  "nftId": "nft_id_from_collection"
-}
-```
-
-**Example:**
-
-```json
-{
-  "walletAddress": "jkzJUkj7tU9pExVFJABFSQSRV2Jtx8EUJjnqzK1tiSB",
-  "nftId": "parchita-astronaut"
+  "name": "BATMAN",
+  "symbol": "BAT",
+  "description": "I am Batman",
+  "image": "https://example.com/batman.png",
+  "website": "https://batman.com",
+  "x": "https://x.com/batman",
+  "discord": "https://discord.gg/batman",
+  "telegram": "https://t.me/batman",
+  "medium": "https://medium.com/batman",
+  "github": "https://github.com/batman"
 }
 ```
 
@@ -64,30 +62,41 @@ The server will start on port 3000 by default.
 {
   "success": true,
   "data": {
-    "id": "mint_id",
-    "status": "pending"
-    // Additional data from Crossmint
+    // Collection data
   }
 }
 ```
 
-### Check Mint Status
+### Mint an NFT
 
-**Endpoint:** `POST /api/mint-status`
+**Endpoint:** `POST /api/collections/{collectionId}/mint`
 
 **Request Body:**
 
 ```json
 {
-  "actionId": "your_mint_action_id"
-}
-```
-
-**Example:**
-
-```json
-{
-  "actionId": "72ba0ac9-b435-49b8-a58d-5efbb55ab885"
+  "name": "The Joker",
+  "description": "The Joker is a unique NFT in my collection with special attributes",
+  "image": "https://example.com/joker.png",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Purple"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Red"
+    },
+    {
+      "trait_type": "Species",
+      "value": "Human"
+    },
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary"
+    }
+  ],
+  "recipientAddress": "your_solana_wallet_address"
 }
 ```
 
@@ -97,35 +106,47 @@ The server will start on port 3000 by default.
 {
   "success": true,
   "data": {
-    "id": "72ba0ac9-b435-49b8-a58d-5efbb55ab885",
-    "status": "completed"
-    // Additional status information from Crossmint
+    // Minting data
   }
 }
 ```
 
 ## Testing with cURL
 
-You can test the API using cURL:
+### Create a Collection
 
 ```bash
-curl --request POST \
-  --url http://localhost:3000/api/mint \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "walletAddress": "jkzJUkj7tU9pExVFJABFSQSRV2Jtx8EUJjnqzK1tiSB",
-    "nftId": "parchita-astronaut"
+curl -X POST \
+  'http://localhost:3000/api/create-collection' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "BATMAN",
+    "symbol": "BAT",
+    "description": "I am Batman",
+    "image": "https://example.com/batman.png",
+    "website": "https://batman.com",
+    "x": "https://x.com/batman",
+    "discord": "https://discord.gg/batman"
   }'
 ```
 
-### Check Mint Status with cURL
+### Mint an NFT
 
 ```bash
-curl --request POST \
-  --url http://localhost:3000/api/mint-status \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "actionId": "72ba0ac9-b435-49b8-a58d-5efbb55ab885"
+curl -X POST \
+  'http://localhost:3000/api/collections/{collectionId}/mint' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "The Joker",
+    "description": "The Joker is a unique NFT",
+    "image": "https://example.com/joker.png",
+    "attributes": [
+      {
+        "trait_type": "Background",
+        "value": "Purple"
+      }
+    ],
+    "recipientAddress": "your_solana_wallet_address"
   }'
 ```
 
@@ -223,57 +244,22 @@ The server includes a collection of NFTs with various categories. Each NFT ID is
 
 - `index.ts` - Main server file
 - `api/mint.ts` - NFT minting endpoint
-- `api/mint-status.ts` - Endpoint to check mint status
 - `api/create-collection.ts` - Endpoint to create a new NFT collection
-- `api/nfts.json` - Collection of NFT metadata
 
 ## Environment Variables
 
 Create a `.env` file in the root directory with the following variables:
 
 ```
-CROSSMINT_API_KEY="your_crossmint_api_key"
-SUB_DOMAIN="www"  # Use "www" for production or "staging" for testing
+EZMINT_API_KEY="your_ezmint_api_key"
+SUB_DOMAIN="mainnet"  # Use "mainnet" for production or "devnet" for testing
+DEFAULT_COLLECTION_ID="your_default_collection_id"  # Default collection ID for webhook minting
 ```
 
-- `CROSSMINT_API_KEY`: Your API key from Crossmint
-- `SUB_DOMAIN`: The subdomain to use for Crossmint API calls (use "www" for production or "staging" for testing)
-
-## Creating a Collection
-
-Before minting NFTs, you need to create a collection on the Solana blockchain. This can be done using the create-collection endpoint:
-
-**Endpoint:** `POST /api/create-collection`
-
-**Request Body:**
-
-```json
-{
-  "name": "Parchita NFT Collection",
-  "description": "A collection of unique Parchita NFTs on Solana",
-  "symbol": "PARCHITA"
-}
-```
-
-**Response:**
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "collection_id",
-    "status": "pending",
-    "collection": {
-      "name": "Parchita NFT Collection",
-      "description": "A collection of unique Parchita NFTs on Solana",
-      "symbol": "PARCHITA"
-    }
-  }
-}
-```
-
-After creating a collection, you can use the collection ID when minting NFTs to ensure they belong to the same collection.
+- `EZMINT_API_KEY`: Your API key from EZMINT
+- `SUB_DOMAIN`: The environment to use for EZMINT API calls (use "mainnet" for production or "devnet" for testing)
+- `DEFAULT_COLLECTION_ID`: The default collection ID to use when minting NFTs through the webhook endpoint
 
 ## License
 
-This project was created using `bun init` in bun v1.1.42. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+This project was created using `bun init`

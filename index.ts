@@ -28,7 +28,7 @@ const server = Bun.serve({
     }
 
     // Handle the mint endpoint
-    if (url.pathname === "/api/mint") {
+    if (url.pathname.match(/^\/api\/collections\/[^/]+\/mint$/)) {
       return handleMintRequest(req);
     }
 

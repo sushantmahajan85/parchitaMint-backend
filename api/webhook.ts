@@ -50,6 +50,46 @@ const LEGACY_MEMO_PROGRAM_ID = "Memo1UhkJRfHyvLMcVucJwxXeuD728EqVDDwQDxFMNo";
 // Target wallet address that should receive SOL payments
 const TARGET_WALLET = "codevLte54E2aQyQ74nDuqr8B2qr39DeNoGxqanXFzq";
 
+// Add these interfaces after the existing interfaces
+interface TransactionLog {
+  signature: string;
+  nftId: string | null;
+  timestamp: string;
+  status: "processing" | "completed" | "failed";
+  recipientAddress: string;
+  amount: number;
+  error?: string;
+}
+
+interface TransactionStore {
+  transactions: TransactionLog[];
+}
+
+// Add these functions before processHeliusWebhook
+async function loadTransactionLog(): Promise<TransactionStore> {
+  try {
+    const data = await Bun.file("transaction-log.json").json();
+    return data as TransactionStore;
+  } catch {
+    return { transactions: [] };
+  }
+}
+
+async function saveTransactionLog(store: TransactionStore): Promise<void> {
+  await Bun.write("transaction-log.json", JSON.stringify(store, null, 2));
+}
+
+async function isTransactionProcessed(signature: string): Promise<boolean> {
+  const store = await loadTransactionLog();
+  return store.transactions.some((tx) => tx.signature === signature);
+}
+
+async function logTransaction(log: TransactionLog): Promise<void> {
+  const store = await loadTransactionLog();
+  store.transactions.push(log);
+  await saveTransactionLog(store);
+}
+
 /**
  * Decode base58 encoded memo data to extract the NFT ID
  * @param data Base58 encoded memo data
@@ -96,7 +136,6 @@ async function processHeliusWebhook(
       JSON.stringify(payload, null, 2)
     );
 
-    // Process only TRANSFER transactions
     const transferTransactions = payload.filter((tx) => tx.type === "TRANSFER");
 
     if (transferTransactions.length === 0) {
@@ -110,11 +149,30 @@ async function processHeliusWebhook(
       };
     }
 
-    // Track minting results
     const mintingResults = [];
 
     // Process each transfer transaction
-    const processedTransfers = transferTransactions.map((tx) => {
+    for (const tx of transferTransactions) {
+      // Check if transaction was already processed
+      if (await isTransactionProcessed(tx.signature)) {
+        console.log(`Transaction ${tx.signature} already processed, skipping`);
+        continue;
+      }
+
+      // Log transaction as processing
+      await logTransaction({
+        signature: tx.signature,
+        nftId: null, // Will be updated later if NFT ID is found
+        timestamp: new Date(tx.timestamp * 1000).toISOString(),
+        status: "processing",
+        recipientAddress: tx.feePayer,
+        amount:
+          tx.nativeTransfers.reduce(
+            (sum, transfer) => sum + transfer.amount,
+            0
+          ) / 1e9,
+      });
+
       // Extract relevant information
       const {
         signature,
@@ -178,91 +236,28 @@ async function processHeliusWebhook(
       const senderWallet =
         relevantTransfers.length > 0 ? relevantTransfers[0].from : feePayer; // Fallback to feePayer if no relevant transfer found
 
-      return {
-        signature,
-        timestamp: date.toISOString(),
-        description,
-        feePayer,
-        senderWallet,
-        transfers,
-        relevantTransfers,
-        totalSolReceived,
-        totalSolReceivedFormatted: `${totalSolReceived} SOL`,
-        nftId, // Include the NFT ID if found
-        hasMemo: memoInstructions.length > 0,
-      };
-    });
+      // When processing NFT minting, update the transaction log
+      if (nftId) {
+        const result = await mintNow(nftId, senderWallet);
 
-    // Filter transactions that have an NFT ID in the memo
-    const transactionsWithNftId = processedTransfers.filter((tx) => tx.nftId);
+        // Update transaction log with final status
+        await logTransaction({
+          signature: signature,
+          nftId: nftId,
+          timestamp: date.toISOString(),
+          status: result.success ? "completed" : "failed",
+          recipientAddress: senderWallet,
+          amount: totalSolReceived,
+          error: result.error,
+        });
 
-    // If there are transactions with NFT IDs, process them for minting
-    if (transactionsWithNftId.length > 0) {
-      console.log(
-        `Found ${transactionsWithNftId.length} transactions with NFT IDs to mint`
-      );
-
-      // Process each transaction with an NFT ID
-      for (const tx of transactionsWithNftId) {
-        try {
-          // Find the NFT data for the given ID
-          const nftData = findNFTById(tx.nftId as string);
-
-          if (!nftData) {
-            console.error(`NFT with ID ${tx.nftId} not found in nfts.json`);
-            mintingResults.push({
-              signature: tx.signature,
-              nftId: tx.nftId,
-              success: false,
-              error: `NFT with ID ${tx.nftId} not found in nfts.json`,
-            });
-            continue;
-          }
-
-          // Check if the amount sent matches the NFT price
-          if (tx.totalSolReceived < nftData.price) {
-            console.error(
-              `Insufficient payment for NFT ${tx.nftId}. Required: ${nftData.price} SOL, Received: ${tx.totalSolReceived} SOL`
-            );
-            mintingResults.push({
-              signature: tx.signature,
-              nftId: tx.nftId,
-              success: false,
-              error: `Insufficient payment. Required: ${nftData.price} SOL, Received: ${tx.totalSolReceived} SOL`,
-            });
-            continue;
-          }
-
-          // All checks passed, mint the NFT
-          const result = await mintNow(tx.nftId as string, tx.senderWallet);
-
-          mintingResults.push({
-            signature: tx.signature,
-            nftId: tx.nftId,
-            success: result.success,
-            error: result.error,
-            data: result.data,
-          });
-
-          console.log(
-            `Transaction ${tx.signature.slice(0, 8)}... with NFT ID ${
-              tx.nftId
-            } received ${tx.totalSolReceivedFormatted}. Minting result: ${
-              result.success ? "Success" : "Failed"
-            }`
-          );
-        } catch (error) {
-          console.error(
-            `Error processing transaction ${tx.signature} with NFT ID ${tx.nftId}:`,
-            error
-          );
-          mintingResults.push({
-            signature: tx.signature,
-            nftId: tx.nftId,
-            success: false,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
+        mintingResults.push({
+          signature: signature,
+          nftId: nftId,
+          success: result.success,
+          error: result.error,
+          data: result.data,
+        });
       }
     }
 
@@ -271,10 +266,10 @@ async function processHeliusWebhook(
       message: "Transfer transactions processed successfully",
       data: {
         receivedAt: new Date().toISOString(),
-        processedTransactions: processedTransfers,
-        transactionsWithNftId: transactionsWithNftId.length,
+        processedTransactions: transferTransactions,
+        transactionsWithNftId: mintingResults.length,
         mintingResults,
-        count: processedTransfers.length,
+        count: transferTransactions.length,
       },
     };
   } catch (error) {
@@ -353,10 +348,41 @@ async function mintNow(
   try {
     console.log(`Minting NFT with ID ${nftId} for recipient ${recipient}`);
 
-    // Call the mintNFT function from mint.ts
-    const result = await mintNFT({
-      walletAddress: recipient,
-      nftId: nftId,
+    // Find the NFT data
+    const nftData = findNFTById(nftId);
+    if (!nftData) {
+      return {
+        success: false,
+        error: `NFT data not found for ID: ${nftId}`,
+      };
+    }
+
+    // Default collection ID - should be configured via environment variable
+    const collectionId = process.env.DEFAULT_COLLECTION_ID;
+    if (!collectionId) {
+      return {
+        success: false,
+        error: "DEFAULT_COLLECTION_ID environment variable is not set",
+      };
+    }
+
+    // Call the mintNFT function from mint.ts with the new structure
+    const result = await mintNFT(collectionId, {
+      name: nftData.name,
+      description: nftData.description,
+      image: nftData.fileUrl,
+      attributes: nftData.specialTraits
+        .map((trait) => ({
+          trait_type: "Special Trait",
+          value: trait,
+        }))
+        .concat([
+          {
+            trait_type: "Category",
+            value: nftData.category,
+          },
+        ]),
+      recipientAddress: recipient,
     });
 
     if (result.success) {

@@ -1,20 +1,23 @@
-const apiKey = process.env.CROSSMINT_API_KEY;
+const apiKey = process.env.EZMINT_API_KEY;
 const subDomain = process.env.SUB_DOMAIN;
 
 if (!apiKey) {
-  throw new Error("CROSSMINT_API_KEY is not set");
+  throw new Error("EZMINT_API_KEY is not set");
 }
-const chain = "solana"; // or "polygon-amoy", "ethereum-sepolia", ...
-const env = subDomain || "www"; // or "www"
-
-// Import the NFT data
-import nftsData from "./nfts.json";
+const env = subDomain || "devnet"; // or "mainnet"
 
 // Define types for better type safety
+interface Attribute {
+  trait_type: string;
+  value: string;
+}
+
 interface MintRequest {
-  walletAddress: string;
-  nftId: string;
-  collectionId?: string; // Optional collection ID
+  name: string;
+  description: string;
+  image: string;
+  attributes: Attribute[];
+  recipientAddress: string;
 }
 
 interface MintResponse {
@@ -23,85 +26,39 @@ interface MintResponse {
   error?: string;
 }
 
-interface NFTData {
-  id: string;
-  name: string;
-  fileName: string;
-  description: string;
-  specialTraits: string[];
-  category: string;
-  fileUrl: string;
-}
-
-/**
- * Find NFT data by ID
- * @param nftId - The ID of the NFT to find
- * @returns The NFT data or undefined if not found
- */
-function findNFTById(nftId: string): NFTData | undefined {
-  return nftsData.find((nft) => nft.id === nftId);
-}
-
 /**
  * Mint an NFT to the specified wallet address
- * @param walletAddress - The recipient's wallet address
- * @param nftId - The ID of the NFT to mint
- * @param collectionId - Optional ID of the collection to mint to (defaults to "default-solana")
+ * @param collectionId - The ID of the collection to mint to
+ * @param mintData - The NFT data to mint
  * @returns Promise with the minting result
  */
-export async function mintNFT({
-  walletAddress,
-  nftId,
-  collectionId = "707c8692-5f24-4722-86cc-c10f1e55ba4c", // Default to "default-solana" collection
-}: MintRequest): Promise<MintResponse> {
+export async function mintNFT(
+  collectionId: string,
+  mintData: MintRequest
+): Promise<MintResponse> {
   try {
     // Validate inputs
-    if (!walletAddress) {
-      return { success: false, error: "Wallet address is required" };
+    if (!mintData.recipientAddress) {
+      return { success: false, error: "Recipient address is required" };
     }
 
-    if (!nftId) {
-      return { success: false, error: "NFT ID is required" };
+    if (!mintData.name) {
+      return { success: false, error: "Name is required" };
     }
 
-    // Find the NFT data
-    const nftData = findNFTById(nftId);
-    if (!nftData) {
-      return { success: false, error: `NFT with ID ${nftId} not found` };
+    if (!mintData.image) {
+      return { success: false, error: "Image URL is required" };
     }
 
-    // Format the recipient address for Solana
-    const recipientAddress = `solana:${walletAddress}`;
-
-    // Prepare the API request with the specified collection
-    const url = `https://${env}.crossmint.com/api/2022-06-09/collections/${collectionId}/nfts`;
+    // Prepare the API request
+    const url = `https://ezmint.xyz/api/${env}/collections/${collectionId}/mint`;
     const options = {
       method: "POST",
       headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "x-api-key": apiKey as string,
+        "Content-Type": "application/json",
+        "x-api-key": apiKey!,
       },
-      body: JSON.stringify({
-        recipient: recipientAddress,
-        metadata: {
-          name: nftData.name,
-          image: nftData.fileUrl, // Update with your actual image URL
-          description: nftData.description,
-          attributes: [
-            {
-              trait_type: "Category",
-              value: nftData.category,
-            },
-            ...nftData.specialTraits.map((trait) => ({
-              trait_type: "Special Trait",
-              value: trait,
-            })),
-          ],
-        },
-        compressed: false,
-        reuploadLinkedFiles: true,
-      }),
+      body: JSON.stringify(mintData),
     };
 
     // Make the API call
@@ -136,10 +93,22 @@ export async function handleMintRequest(req: Request): Promise<Response> {
     );
   }
 
+  // Get collection ID from URL
+  const url = new URL(req.url);
+  const pathParts = url.pathname.split("/");
+  const collectionId = pathParts[pathParts.length - 2]; // Assuming URL pattern .../collections/{collectionId}/mint
+
+  if (!collectionId) {
+    return Response.json(
+      { success: false, error: "Collection ID is required" },
+      { status: 400 }
+    );
+  }
+
   // Process the request
   try {
     const body = (await req.json()) as MintRequest;
-    const result = await mintNFT(body);
+    const result = await mintNFT(collectionId, body);
 
     if (!result.success) {
       return Response.json(result, { status: 400 });

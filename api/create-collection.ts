@@ -1,26 +1,22 @@
-const apiKey = process.env.CROSSMINT_API_KEY;
+const apiKey = process.env.EZMINT_API_KEY;
 const subDomain = process.env.SUB_DOMAIN;
 if (!apiKey) {
-  throw new Error("CROSSMINT_API_KEY is not set");
+  throw new Error("EZMINT_API_KEY is not set");
 }
-const env = subDomain || "www"; // or "staging"
+const env = subDomain || "devnet"; // or "mainnet"
 
 // Define types for better type safety
 interface CreateCollectionRequest {
-  chain: string;
-  fungibility: string;
-  supplyLimit?: number;
-  payments?: {
-    price?: string;
-    recipientAddress?: string;
-  };
-  reuploadLinkedFiles?: boolean;
-  metadata: {
-    name: string;
-    imageUrl: string;
-    description: string;
-    symbol?: string;
-  };
+  name: string;
+  symbol: string;
+  description: string;
+  image: string;
+  website?: string;
+  x?: string;
+  discord?: string;
+  telegram?: string;
+  medium?: string;
+  github?: string;
 }
 
 interface CreateCollectionResponse {
@@ -30,7 +26,7 @@ interface CreateCollectionResponse {
 }
 
 /**
- * Create a new collection on Crossmint
+ * Create a new collection on EZMINT
  * @param collectionData - The collection data to create
  * @returns Promise with the creation result
  */
@@ -39,26 +35,29 @@ export async function createCollection(
 ): Promise<CreateCollectionResponse> {
   try {
     // Validate inputs
-    if (!collectionData.chain) {
-      return { success: false, error: "Chain is required" };
-    }
-
-    if (!collectionData.fungibility) {
-      return { success: false, error: "Fungibility is required" };
-    }
-
-    if (!collectionData.metadata || !collectionData.metadata.name) {
+    if (!collectionData.name) {
       return { success: false, error: "Collection name is required" };
     }
 
+    if (!collectionData.symbol) {
+      return { success: false, error: "Symbol is required" };
+    }
+
+    if (!collectionData.image) {
+      return { success: false, error: "Image URL is required" };
+    }
+
+    if (!collectionData.description) {
+      return { success: false, error: "Description is required" };
+    }
+
     // Prepare the API request
-    const url = `https://${env}.crossmint.com/api/2022-06-09/collections/`;
+    const url = `https://ezmint.xyz/api/${env}/collections`;
     const options = {
       method: "POST",
       headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "x-api-key": apiKey as string,
+        "Content-Type": "application/json",
+        "x-api-key": apiKey!,
       },
       body: JSON.stringify(collectionData),
     };

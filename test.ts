@@ -52,7 +52,7 @@ const transaction = new Transaction();
 transaction.add(
   new TransactionInstruction({
     keys: [{ pubkey: feePayer.publicKey, isSigner: true, isWritable: true }],
-    data: Buffer.from("parchita-astronaut", "utf-8"),
+    data: Buffer.from("parchita-adventurer", "utf-8"),
     programId: new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"),
   })
 );

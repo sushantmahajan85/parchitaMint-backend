@@ -7,7 +7,7 @@
     "specialTraits": ["Spacesuit and helmet", "Floating in zero gravity"],
     "category": "Adventures & Exploration",
     "fileUrl": "https://bee5fndzu7.ufs.sh/f/hbMKvZ36enaUzUCrpSGbFdlom2YchVBCi8wEQsUnrpJKZg6t",
-    "price": 1
+    "price": 0.1
   },
   {
     "id": "parchita-adventurer",
@@ -20,7 +20,7 @@
     ],
     "category": "Adventures & Exploration",
     "fileUrl": "https://bee5fndzu7.ufs.sh/f/hbMKvZ36enaU7TWuq9wrFxjgV4iUbp3WTYyBAdD2n7JqR8ov",
-    "price": 1
+    "price": 0.1
   },
   {
     "id": "parchita-pirate",
