@@ -17,6 +17,7 @@ interface CreateCollectionRequest {
   telegram?: string;
   medium?: string;
   github?: string;
+  royalties?: number;
 }
 
 interface CreateCollectionResponse {
@@ -50,7 +51,9 @@ export async function createCollection(
     if (!collectionData.description) {
       return { success: false, error: "Description is required" };
     }
-
+    if (!collectionData.royalties) {
+      return { success: false, error: "Royalties is required" };
+    }
     // Prepare the API request
     const url = `https://ezmint.xyz/api/${env}/collections`;
     const options = {
