@@ -135,10 +135,10 @@ async function processHeliusWebhook(
   payload: HeliusWebhookPayload
 ): Promise<WebhookResponse> {
   try {
-    console.log(
-      "Received webhook data from Helius:",
-      JSON.stringify(payload, null, 2)
-    );
+    // console.log(
+    //   "Received webhook data from Helius:",
+    //   JSON.stringify(payload, null, 2)
+    // );
 
     let transferTransactions: any = [];
     payload.map((tx) => {
@@ -148,6 +148,8 @@ async function processHeliusWebhook(
         }
       })
     });
+
+    console.log("filtered txs: ", transferTransactions);
 
     return transferTransactions;
     
