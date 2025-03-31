@@ -40,6 +40,7 @@ interface WebhookResponse {
   message: string;
   data?: any;
   error?: string;
+  payload?: any;
 }
 
 // Memo program ID
@@ -290,6 +291,7 @@ async function processHeliusWebhook(
       success: false,
       message: "Failed to process webhook data",
       error: error instanceof Error ? error.message : String(error),
+      payload: payload,
     };
   }
 }
