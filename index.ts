@@ -2,6 +2,7 @@ import { handleMintRequest } from "./api/mint";
 import { handleStatusRequest } from "./api/mint-status";
 import { handleCreateCollectionRequest } from "./api/create-collection";
 import { handleWebhookRequest } from "./api/webhook";
+import { handleRaydiumWebhookRequest } from "./api/raydium-webhook.ts";
 
 const server = Bun.serve({
   port: 3000,
@@ -40,6 +41,10 @@ const server = Bun.serve({
     // Handle the Helius webhook endpoint
     if (url.pathname === "/api/webhook") {
       return handleWebhookRequest(req);
+    }
+
+    if (url.pathname === "/api/raydium-webhook") {
+      return handleRaydiumWebhookRequest(req);
     }
 
     // Handle 404 for unknown routes
